@@ -57,6 +57,11 @@ func main() {
 				Value:   8080,
 				EnvVars: []string{"PORT"},
 			},
+			&cli.StringFlag{
+				Name:    "bearer",
+				Usage:   "bearer token to authenticate with",
+				EnvVars: []string{"BEARER"},
+			},
 		},
 		Action: run(&log),
 	}
@@ -72,6 +77,7 @@ func run(log *zerolog.Logger) func(c *cli.Context) error {
 		log.Debug().Msg("Debug logging enabled")
 
 		s := &server{
+			bearer:   c.String("bearer"),
 			log:      log,
 			messages: make(chan string, msgBuffer),
 			fanOut:   make(map[int64]chan string),
@@ -82,6 +88,7 @@ func run(log *zerolog.Logger) func(c *cli.Context) error {
 }
 
 type server struct {
+	bearer   string
 	log      *zerolog.Logger
 	messages chan string
 	fanOut   map[int64]chan string
@@ -146,6 +153,16 @@ func (s *server) webhookReceiver(w http.ResponseWriter, r *http.Request) {
 		s.log.Debug().Msg("Received a non-POST request")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
+	}
+
+	if s.bearer != "" {
+		auth := r.Header.Get("Authorization")
+		parts := strings.SplitN(auth, " ", 2)
+		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" || parts[1] != s.bearer {
+			s.log.Debug().Msg("Received a request without a bearer token")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 	}
 
 	body := bytes.NewBufferString("")
