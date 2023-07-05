@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+    </head>
+
+    <body>
+        <script>
+            window.onerror = function(event) {
+                console.log("[Error]", event);
+            }
+        </script>
+        <script>
+            const loc = window.location;
+
+            let wsProto = "";
+            switch (loc.protocol){
+                case "http:":
+                    wsProto = "ws:";
+                    break;
+                case "https:":
+                    wsProto = "wss:";
+                    break;
+            }
+
+            let wsPath = "";
+            if (loc.pathname != "/") {
+                wsPath = loc.pathname;
+            }
+
+            let socket = new WebSocket(wsProto + "//" + loc.host + wsPath + "/logs");
+            socket.onmessage = function (event) {
+                const evtText = event.data;
+                console.log("Received:", evtText);
+                const container = document.getElementById("log_container");
+                const logLine = document.createElement("pre");
+                const logText = document.createTextNode(evtText);
+                logLine.appendChild(logText);
+                container.appendChild(logLine);
+            };
+        </script>
+        <div id="log_container"></div>
+    </body>
+</html>
